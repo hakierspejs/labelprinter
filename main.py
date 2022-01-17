@@ -133,7 +133,12 @@ def podglad():
             };
             xhr.open('POST', '/', true);
             var data = new FormData();
-            data.append('opis', document.getElementById("opis").value);
+            opis = document.getElementById("opis").value;
+            if (opis) {
+                data.append('opis', document.getElementById("opis").value);
+            } else {
+                data.append('opis', "Przykładowy opis rzeczy");
+            }
             data.append('wlasnosc', document.getElementById("wlasnosc").value);
             xhr.send(data)
         }
@@ -148,9 +153,11 @@ def podglad():
                 onchange="przerysujObrazek();"
                 onpaste="this.onchange();"
                 oninput="this.onchange();"
+                placeholder="Przykładowy opis rzeczy"
             >
             <label for="wlasnosc">Własność: </label>
             <input id="wlasnosc" name="wlasnosc" type="text"
+                placeholder="nieznany"
                 onchange="przerysujObrazek();"
                 onpaste="this.onchange();"
                 oninput="this.onchange();"
