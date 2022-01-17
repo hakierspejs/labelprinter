@@ -3,6 +3,7 @@
 import os
 import subprocess
 import io
+import re
 
 import flask
 import base58
@@ -15,81 +16,111 @@ import lxml.html
 app = flask.Flask(__name__)
 
 
-def zbuduj_linie(line):
-    ret = []
-    aktualna_linia = ""
-    slowa = line.split(" ")
-    for slowo in slowa:
-        if aktualna_linia:
-            aktualna_linia += " "
-        if len(aktualna_linia) + len(slowo) > 16:
-            ret.append(aktualna_linia)
-            aktualna_linia = ""
-        if aktualna_linia:
-            aktualna_linia += " "
-        aktualna_linia += slowo
-    ret.append(aktualna_linia)
-    return "\n".join(ret)
+GNUJDB_KEY_REGEX = r"^[0-9A-HJ-NP-Za-km-z]{10}$"
+GNUJDB_KEY_REGEX_COMPILED = re.compile(GNUJDB_KEY_REGEX)
 
 
 def gen_key():
-    return base58.b58encode(os.getrandom(7)).decode()
+    ret = ""
+    while not GNUJDB_KEY_REGEX_COMPILED.match(ret):
+        ret = base58.b58encode(os.getrandom(7)).decode()
+    return ret
 
 
-def dopisz_do_gnujdb(k, opis):
+def zbuduj_linie(opis):
+    ret = []
+    aktualna_opis = ""
+    slowa = opis.split(" ")
+    for slowo in slowa:
+        if aktualna_opis:
+            aktualna_opis += " "
+        if len(aktualna_opis) + len(slowo) > 16:
+            ret.append(aktualna_opis)
+            aktualna_opis = ""
+        if aktualna_opis:
+            aktualna_opis += " "
+        aktualna_opis += slowo
+    ret.append(aktualna_opis)
+    return "\n".join(ret)
+
+
+def dopisz_do_gnujdb(k, opis, wlasnosc):
     s = requests.Session()
     url = "https://g.hs-ldz.pl/" + k
     html = s.get(url).text
     h = lxml.html.fromstring(html)
     csrf_token = h.xpath('//input [@name="csrfmiddlewaretoken"]/@value')[0]
-    s.post(url, data={"csrfmiddlewaretoken": csrf_token, "tytul": opis})
+    s.post(
+        url,
+        data={
+            "csrfmiddlewaretoken": csrf_token,
+            "tytul": opis,
+            "wlasnosc": wlasnosc,
+        },
+    )
 
 
-def generuj_png(k, line):
+def generuj_png(k, opis, wlasnosc):
     qr = qrcode.make("https://g.hs-ldz.pl/" + k, box_size=3)
     img = Image.new("RGB", (500, 150), color="white")
     draw = ImageDraw.Draw(img)
     myFont = ImageFont.truetype(
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 42
     )
-    draw.text((0, 0), zbuduj_linie(line), fill=(0, 0, 0), font=myFont)
+    draw.text((0, 0), zbuduj_linie(opis), fill=(0, 0, 0), font=myFont)
     img.paste(qr, (390, 0))
     captionFont = ImageFont.truetype(
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 16
     )
 
     draw.text((390, 100), k, fill=(0, 0, 0), font=captionFont)
+    if wlasnosc:
+        draw.text(
+            (390, 120), "wł. " + wlasnosc, fill=(0, 0, 0), font=captionFont
+        )
     bio = io.BytesIO()
     img.save(bio, format="png")
     return bio.getvalue()
 
 
-def generuj(line):
+def generuj_i_drukuj(opis, wlasnosc, kopii):
     k = gen_key()
-    png_b = generuj_png(k, line)
+    png_b = generuj_png(k, opis, wlasnosc)
     path = "out/" + k + ".png"
     with open(path, "wb") as f:
         f.write(png_b)
-    subprocess.check_call(
-        """brother_ql  -m QL-800 -p /dev/usb/lp0 print -l 50 """ + path,
-        shell=True,
-    )
-    dopisz_do_gnujdb(k, line)
+    for i in range(kopii + 1):
+        subprocess.check_call(
+            """brother_ql  -m QL-800 -p /dev/usb/lp0 print -l 50 """ + path,
+            shell=True,
+        )
+    dopisz_do_gnujdb(k, opis, wlasnosc)
     return path
 
 
-@app.route("/podglad", methods=["POST", "GET"])
+@app.route("/drukuj", methods=["POST"])
+def drukuj():
+    opis = flask.request.form["opis"]
+    wlasnosc = flask.request.form["wlasnosc"]
+    kopii = int(flask.request.form.get("kopii", 1))
+    path = generuj_i_drukuj(opis, wlasnosc, kopii)
+    return flask.send_file(path, mimetype="image/png")
+
+
+@app.route("/", methods=["POST", "GET"])
 def podglad():
     if flask.request.method == "POST":
-        line = flask.request.form["linia"]
-        png_b = generuj_png("XXXXX", line)
+        opis = flask.request.form["opis"]
+        wlasnosc = flask.request.form["wlasnosc"]
+        png_b = generuj_png(gen_key(), opis, wlasnosc)
         response = flask.make_response(png_b)
         response.headers["Content-Type"] = "image_png"
         return response
     else:
         return """
+        <body onload="przerysujObrazek()">
         <script>
-        function linesChanged() {
+        function przerysujObrazek() {
             var xhr = new XMLHttpRequest();
             xhr.responseType = 'arraybuffer';
             xhr.onreadystatechange = function() {
@@ -97,36 +128,35 @@ def podglad():
                 var raw = String.fromCharCode.apply(null,arr);
                 var b64=btoa(raw);
                 var dataURL="data:image/jpeg;base64,"+b64;
-                document.getElementById("elo").src = dataURL;
+                document.getElementById("wygenerowany_obraz").src = dataURL;
             };
-            xhr.open('POST', '/podglad', true);
+            xhr.open('POST', '/', true);
             var data = new FormData();
-            data.append('linia', document.getElementById("linia").value);
+            data.append('opis', document.getElementById("opis").value);
+            data.append('wlasnosc', document.getElementById("wlasnosc").value);
             xhr.send(data)
         }
         </script>
-            <form method="post" action="/podglad">
-            <input id="linia" name="linia" type="text"
-                onchange="linesChanged();"
+            <form method="post" action="/drukuj">
+            <label for="kopii">Kopii: </label>
+            <input id="kopii" name="kopii" type="number"
+                min="1" max="10" minlegth="1" value="1" style="width: 4em;"
+            >
+            <label for="opis">Tytuł: </label>
+            <input id="opis" name="opis" type="text"
+                onchange="przerysujObrazek();"
                 onpaste="this.onchange();"
                 oninput="this.onchange();"
-            ></form>
-            <img id="elo">
+            >
+            <label for="wlasnosc">Własność: </label>
+            <input id="wlasnosc" name="wlasnosc" type="text"
+                onchange="przerysujObrazek();"
+                onpaste="this.onchange();"
+                oninput="this.onchange();"
+            >
+            </form>
+            <img id="wygenerowany_obraz">
         """
-
-
-@app.route("/drukuj", methods=["POST"])
-def drukuj():
-    line = flask.request.form["linia"]
-    path = generuj(line)
-    return flask.send_file(path, mimetype="image/png")
-
-
-@app.route("/")
-def index():
-    return (
-        """<form method="post" action="/drukuj"><input name="linia"></form>"""
-    )
 
 
 if __name__ == "__main__":
