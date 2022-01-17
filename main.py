@@ -118,6 +118,7 @@ def podglad():
         return response
     else:
         return """
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <body onload="przerysujObrazek()">
         <script>
         function przerysujObrazek() {
@@ -154,8 +155,10 @@ def podglad():
                 onpaste="this.onchange();"
                 oninput="this.onchange();"
             >
+            <input type="submit" value="Drukuj">
             </form>
-            <img id="wygenerowany_obraz">
+            <img id="wygenerowany_obraz"
+                style="border: 1px dotted; max-width: 100%">
         """
 
 
