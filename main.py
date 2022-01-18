@@ -89,7 +89,7 @@ def generuj_i_drukuj(opis, wlasnosc, kopii):
     path = "out/" + k + ".png"
     with open(path, "wb") as f:
         f.write(png_b)
-    for i in range(kopii + 1):
+    for i in range(kopii):
         subprocess.check_call(
             """brother_ql  -m QL-800 -p /dev/usb/lp0 print -l 50 """ + path,
             shell=True,
