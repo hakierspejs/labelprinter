@@ -103,7 +103,10 @@ def drukuj():
     opis = flask.request.form["opis"]
     wlasnosc = flask.request.form["wlasnosc"]
     kopii = int(flask.request.form.get("kopii", 1))
-    path = generuj_i_drukuj(opis, wlasnosc, kopii)
+    try:
+        path = generuj_i_drukuj(opis, wlasnosc, kopii)
+    except subprocess.CalledProcessError:
+        return "subprocess.CalledProcessError. is the printer turned on?"
     return flask.send_file(path, mimetype="image/png")
 
 
