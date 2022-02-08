@@ -119,6 +119,7 @@ def podglad():
     else:
         return """
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>labelprinter</title>
         <body onload="przerysujObrazek()">
         <script>
         function przerysujObrazek() {
