@@ -16,3 +16,9 @@ This will expose it on port 5000. Before printing the label you should be able t
 
 ## Technicalities
 
+This was meant to be a simple Flask service using pklaus/brother_ql library. 
+For qrcode generation, I used "qrcode" and "pillow" libraries.
+"requests", "base58" and "lxml" are there for interfacing with gnujdb.
+
+Tested on ARM (Raspberry Pi). I guess we should rewrite it in Go, Rust or similar because it's a bit
+slow to deploy on small machines.2
