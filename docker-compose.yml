@@ -6,5 +6,5 @@ services:
     ports:
       - 5000:5000
     volumes:
-      - /dev/usb/lp0:/dev/usb/lp0
+      - /dev/usb:/dev/usb
     privileged: true
