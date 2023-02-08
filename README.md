@@ -21,4 +21,4 @@ For qrcode generation, I used "qrcode" and "pillow" libraries.
 "requests", "base58" and "lxml" are there for interfacing with gnujdb.
 
 Tested on ARM (Raspberry Pi). I guess we should rewrite it in Go, Rust or similar because it's a bit
-slow to deploy on small machines.2
+slow to deploy on small machines.
