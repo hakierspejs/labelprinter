@@ -12,8 +12,13 @@ from PIL import Image, ImageDraw, ImageFont
 app = flask.Flask(__name__)
 
 
-FONT = ImageFont.truetype(
+LARGE_FONT = ImageFont.truetype(
     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 42
+)
+
+
+SMALL_FONT = ImageFont.truetype(
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 16
 )
 
 
@@ -54,8 +59,39 @@ def generuj_png(opis, url):
         qr = qr.resize((500, 500), Image.ANTIALIAS)
         img.paste(qr, (0, -20))
 
-    draw.text((10, text_start_ypos), linie, fill=(0, 0, 0), font=FONT)
+    draw.text((10, text_start_ypos), linie, fill=(0, 0, 0), font=LARGE_FONT)
 
+    return img_jako_png(img)
+
+
+def generuj_png2(opis, url, wlasnosc=""):
+    linie = zbuduj_linie(opis, 16)
+
+    qr_code_xpos = 390
+    ysize = 150
+
+    img = Image.new("RGB", (500, ysize), color="white")
+    draw = ImageDraw.Draw(img)
+
+    qr = qrcode.make(url, box_size=3)
+    img.paste(qr, (qr_code_xpos, 0))
+
+    draw.text(
+        (qr_code_xpos, 100),
+        url.split("/")[-1],
+        fill=(0, 0, 0),
+        font=SMALL_FONT,
+    )
+
+    if wlasnosc:
+        draw.text(
+            (qr_code_xpos, 120),
+            "wł. " + wlasnosc,
+            fill=(0, 0, 0),
+            font=SMALL_FONT,
+        )
+
+    draw.text((0, 0), linie, fill=(0, 0, 0), font=LARGE_FONT)
     return img_jako_png(img)
 
 
