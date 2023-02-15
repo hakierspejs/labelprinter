@@ -31,16 +31,20 @@ def zbuduj_linie(opis):
 
 def generuj_png(opis, url):
     linie = zbuduj_linie(opis)
-    qr = qrcode.make(url, box_size=3)
-    ysize = 500 + (35 * len(linie.split("\n")))
+    ysize = (450 if url else 10) + (50 * len(linie.split("\n")))
     img = Image.new("RGB", (500, ysize), color="white")
     draw = ImageDraw.Draw(img)
     myFont = ImageFont.truetype(
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 42
     )
-    qr = qr.resize((500, 500), Image.ANTIALIAS)
-    img.paste(qr, (0, -20))
-    draw.text((10, 450), linie, fill=(0, 0, 0), font=myFont)
+
+    if url:
+        qr = qrcode.make(url, box_size=3)
+        qr = qr.resize((500, 500), Image.ANTIALIAS)
+        img.paste(qr, (0, -20))
+        draw.text((10, 450), linie, fill=(0, 0, 0), font=myFont)
+    else:
+        draw.text((10, 0), linie, fill=(0, 0, 0), font=myFont)
 
     bio = io.BytesIO()
     img.save(bio, format="png")
@@ -120,7 +124,7 @@ def podglad():
             >
             <label for="url">URL: </label>
             <input id="url" name="url" type="text"
-                placeholder="nieznany"
+                placeholder="pusty = brak QR"
                 onchange="przerysujObrazek();"
                 onpaste="this.onchange();"
                 oninput="this.onchange();"
