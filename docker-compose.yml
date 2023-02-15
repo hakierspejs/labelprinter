@@ -4,7 +4,8 @@ services:
   labelarka_flaskapp:
     build: .
     ports:
-      - 5000:5000
+      - 5001:5001
     volumes:
-      - /dev/usb/lp0:/dev/usb/lp0
+      - /dev/usb:/dev/usb
     privileged: true
+    restart: unless-stopped

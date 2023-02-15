@@ -1,30 +1,15 @@
 #!/usr/bin/env python3
 
-import os
 import subprocess
 import io
-import re
+import random
 
 import flask
-import base58
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
-import requests
-import lxml.html
 
 
 app = flask.Flask(__name__)
-
-
-GNUJDB_KEY_REGEX = r"^[0-9A-HJ-NP-Za-km-z]{10}$"
-GNUJDB_KEY_REGEX_COMPILED = re.compile(GNUJDB_KEY_REGEX)
-
-
-def gen_key():
-    ret = ""
-    while not GNUJDB_KEY_REGEX_COMPILED.match(ret):
-        ret = base58.b58encode(os.getrandom(7)).decode()
-    return ret
 
 
 def zbuduj_linie(opis):
@@ -34,7 +19,7 @@ def zbuduj_linie(opis):
     for slowo in slowa:
         if aktualna_opis:
             aktualna_opis += " "
-        if len(aktualna_opis) + len(slowo) > 16:
+        if len(aktualna_opis) + len(slowo) > 24:
             ret.append(aktualna_opis)
             aktualna_opis = ""
         if aktualna_opis:
@@ -44,48 +29,27 @@ def zbuduj_linie(opis):
     return "\n".join(ret)
 
 
-def dopisz_do_gnujdb(k, opis, wlasnosc):
-    s = requests.Session()
-    url = "https://g.hs-ldz.pl/" + k
-    html = s.get(url).text
-    h = lxml.html.fromstring(html)
-    csrf_token = h.xpath('//input [@name="csrfmiddlewaretoken"]/@value')[0]
-    s.post(
-        url,
-        data={
-            "csrfmiddlewaretoken": csrf_token,
-            "tytul": opis,
-            "wlasnosc": wlasnosc,
-        },
-    )
-
-
-def generuj_png(k, opis, wlasnosc):
-    qr = qrcode.make("https://g.hs-ldz.pl/" + k, box_size=3)
-    img = Image.new("RGB", (500, 150), color="white")
+def generuj_png(opis, url):
+    linie = zbuduj_linie(opis)
+    qr = qrcode.make(url, box_size=3)
+    ysize = 500 + (35 * len(linie.split("\n")))
+    img = Image.new("RGB", (500, ysize), color="white")
     draw = ImageDraw.Draw(img)
     myFont = ImageFont.truetype(
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 42
     )
-    draw.text((0, 0), zbuduj_linie(opis), fill=(0, 0, 0), font=myFont)
-    img.paste(qr, (390, 0))
-    captionFont = ImageFont.truetype(
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 16
-    )
+    qr = qr.resize((500, 500), Image.ANTIALIAS)
+    img.paste(qr, (0, -20))
+    draw.text((10, 450), linie, fill=(0, 0, 0), font=myFont)
 
-    draw.text((390, 100), k, fill=(0, 0, 0), font=captionFont)
-    if wlasnosc:
-        draw.text(
-            (390, 120), "wł. " + wlasnosc, fill=(0, 0, 0), font=captionFont
-        )
     bio = io.BytesIO()
     img.save(bio, format="png")
     return bio.getvalue()
 
 
-def generuj_i_drukuj(opis, wlasnosc, kopii):
-    k = gen_key()
-    png_b = generuj_png(k, opis, wlasnosc)
+def generuj_i_drukuj(opis, url, kopii):
+    k = str(random.random())
+    png_b = generuj_png(opis, url)
     path = "out/" + k + ".png"
     with open(path, "wb") as f:
         f.write(png_b)
@@ -94,16 +58,15 @@ def generuj_i_drukuj(opis, wlasnosc, kopii):
             """brother_ql  -m QL-800 -p /dev/usb/lp0 print -l 50 """ + path,
             shell=True,
         )
-    dopisz_do_gnujdb(k, opis, wlasnosc)
     return path
 
 
 @app.route("/drukuj", methods=["POST"])
 def drukuj():
     opis = flask.request.form["opis"]
-    wlasnosc = flask.request.form["wlasnosc"]
+    url = flask.request.form["url"]
     kopii = int(flask.request.form.get("kopii", 1))
-    path = generuj_i_drukuj(opis, wlasnosc, kopii)
+    path = generuj_i_drukuj(opis, url, kopii)
     return flask.send_file(path, mimetype="image/png")
 
 
@@ -111,8 +74,8 @@ def drukuj():
 def podglad():
     if flask.request.method == "POST":
         opis = flask.request.form["opis"]
-        wlasnosc = flask.request.form["wlasnosc"]
-        png_b = generuj_png(gen_key(), opis, wlasnosc)
+        url = flask.request.form["url"]
+        png_b = generuj_png(opis, url)
         response = flask.make_response(png_b)
         response.headers["Content-Type"] = "image_png"
         return response
@@ -139,7 +102,7 @@ def podglad():
             } else {
                 data.append('opis', "Przykładowy opis rzeczy");
             }
-            data.append('wlasnosc', document.getElementById("wlasnosc").value);
+            data.append('url', document.getElementById("url").value);
             xhr.send(data)
         }
         </script>
@@ -155,8 +118,8 @@ def podglad():
                 oninput="this.onchange();"
                 placeholder="Przykładowy opis rzeczy"
             >
-            <label for="wlasnosc">Własność: </label>
-            <input id="wlasnosc" name="wlasnosc" type="text"
+            <label for="url">URL: </label>
+            <input id="url" name="url" type="text"
                 placeholder="nieznany"
                 onchange="przerysujObrazek();"
                 onpaste="this.onchange();"
@@ -170,4 +133,4 @@ def podglad():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+    app.run(host="0.0.0.0", port=5001)
