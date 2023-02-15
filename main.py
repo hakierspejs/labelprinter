@@ -12,14 +12,19 @@ from PIL import Image, ImageDraw, ImageFont
 app = flask.Flask(__name__)
 
 
-def zbuduj_linie(opis):
+FONT = ImageFont.truetype(
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 42
+)
+
+
+def zbuduj_linie(opis, max_znakow_na_linie):
     ret = []
     aktualna_opis = ""
     slowa = opis.split(" ")
     for slowo in slowa:
         if aktualna_opis:
             aktualna_opis += " "
-        if len(aktualna_opis) + len(slowo) > 24:
+        if len(aktualna_opis) + len(slowo) > max_znakow_na_linie:
             ret.append(aktualna_opis)
             aktualna_opis = ""
         if aktualna_opis:
@@ -29,26 +34,29 @@ def zbuduj_linie(opis):
     return "\n".join(ret)
 
 
+def img_jako_png(img):
+    bio = io.BytesIO()
+    img.save(bio, format="png")
+    return bio.getvalue()
+
+
 def generuj_png(opis, url):
-    linie = zbuduj_linie(opis)
-    ysize = (450 if url else 10) + (50 * len(linie.split("\n")))
+    linie = zbuduj_linie(opis, 24)
+
+    text_start_ypos = 450 if url else 10
+    ysize = text_start_ypos + (50 * len(linie.split("\n")))
+
     img = Image.new("RGB", (500, ysize), color="white")
     draw = ImageDraw.Draw(img)
-    myFont = ImageFont.truetype(
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 42
-    )
 
     if url:
         qr = qrcode.make(url, box_size=3)
         qr = qr.resize((500, 500), Image.ANTIALIAS)
         img.paste(qr, (0, -20))
-        draw.text((10, 450), linie, fill=(0, 0, 0), font=myFont)
-    else:
-        draw.text((10, 0), linie, fill=(0, 0, 0), font=myFont)
 
-    bio = io.BytesIO()
-    img.save(bio, format="png")
-    return bio.getvalue()
+    draw.text((10, text_start_ypos), linie, fill=(0, 0, 0), font=FONT)
+
+    return img_jako_png(img)
 
 
 def generuj_i_drukuj(opis, url, kopii):
