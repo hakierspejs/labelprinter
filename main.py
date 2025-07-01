@@ -60,8 +60,8 @@ def dopisz_do_gnujdb(k, opis, wlasnosc):
     )
 
 
-def generuj_png(k, opis, wlasnosc):
-    qr = qrcode.make("https://g.hs-ldz.pl/" + k, box_size=3)
+def generuj_png(k, opis, wlasnosc, addr):
+    qr = qrcode.make(addr + k, box_size=3)
     img = Image.new("RGB", (500, 150), color="white")
     draw = ImageDraw.Draw(img)
     myFont = ImageFont.truetype(
@@ -83,10 +83,10 @@ def generuj_png(k, opis, wlasnosc):
     return bio.getvalue()
 
 
-def generuj_i_drukuj(opis, wlasnosc, kopii, k):
+def generuj_i_drukuj(opis, wlasnosc, kopii, k, addr):
     if not k:
         k = gen_key()
-    png_b = generuj_png(k, opis, wlasnosc)
+    png_b = generuj_png(k, opis, wlasnosc, addr)
     path = "out/" + k + ".png"
     with open(path, "wb") as f:
         f.write(png_b)
@@ -105,7 +105,7 @@ def drukuj():
     wlasnosc = flask.request.form["wlasnosc"]
     kopii = int(flask.request.form.get("kopii", 1))
     try:
-        path = generuj_i_drukuj(opis, wlasnosc, kopii, None)
+        path = generuj_i_drukuj(opis, wlasnosc, kopii, None, "https://g.hs-ldz.pl/")
     except subprocess.CalledProcessError:
         return "subprocess.CalledProcessError. is the printer turned on?"
     return flask.send_file(path, mimetype="image/png")
@@ -118,7 +118,7 @@ def spejstore_print():
     id = flask.request.args.get("id")
     kopii = int(1)
     try:
-        path = generuj_i_drukuj(opis, wlasnosc, kopii, id)
+        path = generuj_i_drukuj(opis, wlasnosc, kopii, id, "https://i.hs-ldz.pl/")
     except subprocess.CalledProcessError:
         return "subprocess.CalledProcessError. is the printer turned on?"
     return flask.send_file(path, mimetype="image/png")
@@ -129,7 +129,7 @@ def podglad():
     if flask.request.method == "POST":
         opis = flask.request.form["opis"]
         wlasnosc = flask.request.form["wlasnosc"]
-        png_b = generuj_png(gen_key(), opis, wlasnosc)
+        png_b = generuj_png(gen_key(), opis, wlasnosc, "https://g.hs-ldz.pl/")
         response = flask.make_response(png_b)
         response.headers["Content-Type"] = "image_png"
         return response
