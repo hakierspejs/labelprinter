@@ -5,3 +5,4 @@ qrcode==7.2
 lxml==4.9.1
 requests==2.22.0
 Flask==2.1.0
+werkzeug==2.3.7

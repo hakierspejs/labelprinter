@@ -110,6 +110,18 @@ def drukuj():
     return flask.send_file(path, mimetype="image/png")
 
 
+@app.route("/api/2/print", methods=["POST"])
+def spejstore_print():
+    opis = flask.request.args.get("name")
+    wlasnosc = flask.request.args.get("owner")
+    kopii = int(1)
+    try:
+        path = generuj_i_drukuj(opis, wlasnosc, kopii)
+    except subprocess.CalledProcessError:
+        return "subprocess.CalledProcessError. is the printer turned on?"
+    return flask.send_file(path, mimetype="image/png")
+
+
 @app.route("/", methods=["POST", "GET"])
 def podglad():
     if flask.request.method == "POST":
