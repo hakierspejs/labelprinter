@@ -83,8 +83,9 @@ def generuj_png(k, opis, wlasnosc):
     return bio.getvalue()
 
 
-def generuj_i_drukuj(opis, wlasnosc, kopii):
-    k = gen_key()
+def generuj_i_drukuj(opis, wlasnosc, kopii, k):
+    if not k:
+        k = gen_key()
     png_b = generuj_png(k, opis, wlasnosc)
     path = "out/" + k + ".png"
     with open(path, "wb") as f:
@@ -104,7 +105,7 @@ def drukuj():
     wlasnosc = flask.request.form["wlasnosc"]
     kopii = int(flask.request.form.get("kopii", 1))
     try:
-        path = generuj_i_drukuj(opis, wlasnosc, kopii)
+        path = generuj_i_drukuj(opis, wlasnosc, kopii, None)
     except subprocess.CalledProcessError:
         return "subprocess.CalledProcessError. is the printer turned on?"
     return flask.send_file(path, mimetype="image/png")
@@ -114,9 +115,10 @@ def drukuj():
 def spejstore_print():
     opis = flask.request.args.get("name")
     wlasnosc = flask.request.args.get("owner")
+    id = flask.request.args.get("id")
     kopii = int(1)
     try:
-        path = generuj_i_drukuj(opis, wlasnosc, kopii)
+        path = generuj_i_drukuj(opis, wlasnosc, kopii, id)
     except subprocess.CalledProcessError:
         return "subprocess.CalledProcessError. is the printer turned on?"
     return flask.send_file(path, mimetype="image/png")
